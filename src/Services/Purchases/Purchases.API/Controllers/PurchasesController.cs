@@ -19,7 +19,7 @@ namespace Purchases.API.Controllers
     public class PurchasesController : ControllerBase
     {
         private readonly IBusControl _busControl;
-        private readonly Uri _rabbitMqUrl = new Uri("rabbitmq://localhost/purchasesQueue");
+        private readonly Uri _rabbitMqUrl = new Uri("rabbitmq://rabbit/purchasesQueue");
 
         public PurchasesController(IBusControl busControl)
         {
