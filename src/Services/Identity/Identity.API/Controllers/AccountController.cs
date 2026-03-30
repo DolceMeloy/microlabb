@@ -15,7 +15,7 @@ namespace Identity.API.Controllers
     public class AccountController : ControllerBase
     {
         private readonly IBusControl _busControl;
-        private readonly Uri _rabbitMqUrl = new Uri("rabbitmq://localhost/identityQueue");
+        private readonly Uri _rabbitMqUrl = new Uri("rabbitmq://rabbit/identityQueue");
 
         public AccountController(IBusControl busControl)
         {
