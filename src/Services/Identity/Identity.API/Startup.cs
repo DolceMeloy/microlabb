@@ -90,7 +90,7 @@ namespace Identity.API
                 x.UsingRabbitMq((context, cfg) =>
                 {
 
-                    cfg.Host(new Uri("rabbitmq://host.docker.internal/"));
+                                        cfg.Host(new Uri("rabbitmq://rabbit/"));
                     cfg.ReceiveEndpoint("identityQueue", e =>
                     {
                         e.PrefetchCount = 20;
