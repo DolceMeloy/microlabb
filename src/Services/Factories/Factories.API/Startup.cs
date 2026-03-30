@@ -32,7 +32,7 @@ namespace Factories.API
                 x.UsingRabbitMq((context, cfg) =>
                 {
 
-                    cfg.Host(new Uri("rabbitmq://host.docker.internal/"));
+                                        cfg.Host(new Uri("rabbitmq://rabbit/"));
                     cfg.ConfigureJsonSerializer(settings =>
                     {
                         settings.PreserveReferencesHandling = PreserveReferencesHandling.Objects;
