@@ -16,6 +16,7 @@ namespace Shops.Domain.Services
     public class ShopsService : IShopsService
     {
         private const int MaxProductRequestCount = 10;
+        private const int Zalupa = 13;
         private readonly ShopsDbContext _context;
 
         public ShopsService(ShopsDbContext context)
