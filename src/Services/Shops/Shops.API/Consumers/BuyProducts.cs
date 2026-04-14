@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using MassTransit;
 using RtuItLab.Infrastructure.MassTransit.Purchases.Requests;
@@ -10,7 +10,8 @@ namespace Shops.API.Consumers
     public class BuyProducts : ShopsBaseConsumer, IConsumer<BuyProductsRequest>
     {
         private readonly IBusControl _busControl;
-        private readonly Uri _rabbitMqUrl = new Uri("rabbitmq://localhost/purchasesQueue");
+        // FIX: исправлен hostname с localhost на rabbit
+        private readonly Uri _rabbitMqUrl = new Uri("rabbitmq://rabbit/purchasesQueue");
 
         public BuyProducts(IShopsService shopsService,
             IBusControl busControl) : base(shopsService)
@@ -22,15 +23,14 @@ namespace Shops.API.Consumers
         {
             var order = await ShopsService.BuyProducts(context.Message.ShopId, context.Message.Products);
             await context.RespondAsync(order);
-            
-            var transaction =
-                await ShopsService.CreateTransaction(context.Message.ShopId, order);
+
+            var transaction = await ShopsService.CreateTransaction(context.Message.ShopId, order);
             await ShopsService.AddReceipt(transaction.Receipt);
-                
+
             var endpoint = await _busControl.GetSendEndpoint(_rabbitMqUrl);
             await endpoint.Send(new AddTransactionRequest
             {
-                User = context.Message.User, 
+                User        = context.Message.User,
                 Transaction = transaction
             });
         }

@@ -1,4 +1,4 @@
-﻿using MassTransit;
+using MassTransit;
 using Microsoft.AspNetCore.Http;
 using RtuItLab.Infrastructure.MassTransit;
 using RtuItLab.Infrastructure.Models.Identity;
@@ -11,10 +11,12 @@ namespace RtuItLab.Infrastructure.Middlewares
     public class JwtMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly Uri _rabbitMqUri = new Uri("rabbitmq://localhost/identityQueue");
+        // FIX: исправлен hostname с localhost на rabbit (Docker service name)
+        private readonly Uri _rabbitMqUri = new Uri("rabbitmq://rabbit/identityQueue");
+
         public JwtMiddleware(RequestDelegate next)
         {
-            _next        = next;
+            _next = next;
         }
 
         public async Task Invoke(HttpContext context, IBusControl busControl)
@@ -27,13 +29,17 @@ namespace RtuItLab.Infrastructure.Middlewares
 
         private async Task AttachUserToContext(HttpContext context, IBusControl busControl, string token)
         {
-            var client = busControl.CreateRequestClient<TokenRequest>(_rabbitMqUri);
-            var response = await client.GetResponse<User>(new TokenRequest
+            try
             {
-                Token = token
-            });
-            if (response.Message != null)
-                context.Items["User"] = response.Message;
+                var client = busControl.CreateRequestClient<TokenRequest>(_rabbitMqUri, TimeSpan.FromSeconds(10));
+                var response = await client.GetResponse<User>(new TokenRequest { Token = token });
+                if (response.Message != null)
+                    context.Items["User"] = response.Message;
+            }
+            catch
+            {
+                // Невалидный токен — просто не устанавливаем пользователя
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RtuItLab.Infrastructure.Exceptions;
 using RtuItLab.Infrastructure.MassTransit;
 using RtuItLab.Infrastructure.Models.Purchases;
@@ -16,7 +16,6 @@ namespace Shops.Domain.Services
     public class ShopsService : IShopsService
     {
         private const int MaxProductRequestCount = 10;
-        private const int Zalupa = 13;
         private readonly ShopsDbContext _context;
 
         public ShopsService(ShopsDbContext context)
@@ -28,7 +27,8 @@ namespace Shops.Domain.Services
         {
             var result = new List<Shop>();
             result.AddRange(
-                    _context.Shops.Select(item => item.ToShopDto())
+                _context.Shops
+                    .Select(item => item.ToShopDto())
                     .AsNoTracking()
                     .ToList());
             return result;
@@ -36,64 +36,65 @@ namespace Shops.Domain.Services
 
         public async Task<ICollection<Product>> GetProductsByShop(int shopId)
         {
-            var result = new List<Product>();
             var shop = await _context.Shops.Include(item => item.Products)
                 .FirstOrDefaultAsync(item => item.Id == shopId);
-            
+
             if (shop is null)
                 throw new NotFoundException("Shop not found");
-            
-            result = shop?.Products
+
+            var result = shop.Products
                 .Select(item => item.ToProductDto())
                 .ToList();
-            
+
             return result;
         }
 
-        public async Task<ICollection<Product>> GetProductsByCategory(int shopId,
-            string categoryName)
+        public async Task<ICollection<Product>> GetProductsByCategory(int shopId, string categoryName)
         {
             var shop = await _context.Shops.Include(item => item.Products)
                 .FirstOrDefaultAsync(item => item.Id == shopId);
+
             if (shop is null)
                 throw new NotFoundException("Shop not found");
-            
-            var result = shop?.Products.Where(item => item.Category == categoryName)
+
+            var result = shop.Products
+                .Where(item => item.Category == categoryName)
                 .Select(item => item.ToProductDto())
                 .ToList();
-            
+
             return result;
         }
 
-        public async Task<ICollection<Product>> BuyProducts(int shopId,
-            ICollection<Product> products)
+        public async Task<ICollection<Product>> BuyProducts(int shopId, ICollection<Product> products)
         {
             var resultProducts = new List<Product>();
 
             if (products.Count > MaxProductRequestCount)
-                    throw new BadRequestException($"Too many products, max count is {MaxProductRequestCount}");
-            
-            if (products.Count < 1) 
+                throw new BadRequestException($"Too many products, max count is {MaxProductRequestCount}");
+
+            if (products.Count < 1)
                 throw new BadRequestException($"Please, select products, max count is {MaxProductRequestCount}");
-            
+
             var shop = await _context.Shops.Include(item => item.Products)
                 .FirstOrDefaultAsync(item => item.Id == shopId);
+
             if (shop is null)
                 throw new BadRequestException("Shop not found");
+
             foreach (var product in products)
-            { 
-                var item = shop?.Products.FirstOrDefault(productContext => productContext.Id == product.ProductId);
-                if (item is null || item.Count < product.Count) 
+            {
+                var item = shop.Products.FirstOrDefault(p => p.Id == product.ProductId);
+                if (item is null || item.Count < product.Count)
                     throw new BadRequestException(
                         $"ProductId {product.ProductId} is either not found, or there not enough of it in the store");
+
                 item.Count -= product.Count;
                 var addProduct = item.ToProductDto();
                 addProduct.Count = product.Count;
                 resultProducts.Add(addProduct);
             }
-                
+
             await _context.SaveChangesAsync();
-                
             return resultProducts;
         }
 
@@ -101,25 +102,31 @@ namespace Shops.Domain.Services
         {
             var response = new Transaction
             {
-                Products = products.ToList(),
-                Date = DateTime.Now,
+                Products     = products.ToList(),
+                Date         = DateTime.Now,
                 IsShopCreate = true,
-                Receipt = new Receipt
+                Receipt      = new Receipt
                 {
-                    ShopId = shopId,
-                    Cost = products.Sum(item => item.Cost * item.Count),
-                    Count = products.Sum(item => item.Count),
-                    Date = DateTime.Now,
+                    ShopId   = shopId,
+                    Cost     = products.Sum(item => item.Cost * item.Count),
+                    Count    = products.Sum(item => item.Count),
+                    Date     = DateTime.Now,
                     Products = products.ToList()
                 }
             };
             return Task.FromResult(response);
         }
 
+        // FIX: ForEach(async item => ...) — async void антипаттерн.
+        // SaveChangesAsync вызывался до завершения AddProductsInShop.
+        // Исправлено на foreach + await.
         public async Task AddProductsByFactory(ICollection<ProductByFactory> products)
         {
             var shopsCollection = products.GroupBy(item => item.ShopId);
-            shopsCollection.ToList().ForEach(async item => { await AddProductsInShop(item.Key, item.ToList()); });
+            foreach (var group in shopsCollection)
+            {
+                await AddProductsInShop(group.Key, group.ToList());
+            }
             await _context.SaveChangesAsync();
         }
 
@@ -127,9 +134,10 @@ namespace Shops.Domain.Services
         {
             var receiptContext = new ReceiptContext
             {
-                FullCost = receipt.Products.Sum(item => item.Count* item.Cost),
-                Count = receipt.Products.Sum(item => item.Count),
-                Products = new List<ProductByReceiptContext>(receipt.Products.Select(item => item.ToProductByReceiptContext()))
+                FullCost = receipt.Products.Sum(item => item.Count * item.Cost),
+                Count    = receipt.Products.Sum(item => item.Count),
+                Products = new List<ProductByReceiptContext>(
+                    receipt.Products.Select(item => item.ToProductByReceiptContext()))
             };
             await _context.Receipts.AddAsync(receiptContext);
             await _context.SaveChangesAsync();
@@ -139,12 +147,15 @@ namespace Shops.Domain.Services
         {
             var shop = await _context.Shops.Include(item => item.Products)
                 .FirstOrDefaultAsync(shopContext => shopContext.Id == shopId);
-            products.ForEach(product =>
+
+            if (shop is null) return;
+
+            foreach (var product in products)
             {
                 var productContext = shop.Products.FirstOrDefault(item => item.Id == product.ProductId);
                 if (productContext != null)
                     productContext.Count += product.Count;
-            });
+            }
         }
     }
 }
