@@ -1,13 +1,26 @@
-version: '3.4'
+version: '3.8'
+
+# Переопределения для локальной разработки на Windows/Mac.
+# Этот файл применяется автоматически при вызове `docker compose up`.
+# На продакшн-сервере он не нужен.
 
 services:
   apigateway:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=https://+:443;http://+:80
-    ports:
-      - "80"
-      - "443"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+
+  identityapi:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  purchasesapi:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  shopsapi:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  factoriesapi:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development

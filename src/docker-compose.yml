@@ -1,57 +1,121 @@
-version: '3.4'
+version: '3.8'
 
 services:
+
   rabbit:
-      hostname: rabbit
-      image: rabbitmq:3.11-management
-      ports:
-         - "5672:5672" 
-         - "15672:15672"  
+    hostname: rabbit
+    image: rabbitmq:3.11-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  db:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD:-YourStrongPassword123!}
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
   apigateway:
-    image: bezlla/apigateway
+    image: microlabb/apigateway
     build:
       context: .
       dockerfile: RtuItLab.ApiGateway/Dockerfile
     ports:
-      - 5000:5000
-  db:
-     image: "mcr.microsoft.com/mssql/server"
-     environment:
-        SA_PASSWORD: "YourPassword123"
-        ACCEPT_EULA: "Y"
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+    depends_on:
+      - identityapi
+      - purchasesapi
+      - shopsapi
+    restart: unless-stopped
+
   identityapi:
-        image: bezlla/identityapi
-        build:
-            context: .
-            dockerfile: Services/Identity/Identity.API/Dockerfile
-        ports:
-            - 7001:7001
-        depends_on:
-            - db
+    image: microlabb/identityapi
+    build:
+      context: .
+      dockerfile: Services/Identity/Identity.API/Dockerfile
+    ports:
+      - "7001:7001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - DefaultConnection=Server=db;Database=identity;User=sa;Password=${SA_PASSWORD:-YourStrongPassword123!};
+      - Secret=${JWT_SECRET:-7c9e6679-7425-40de-944b-e07fc1f90ae6}
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
+    restart: unless-stopped
+
   purchasesapi:
-        image: bezlla/purchasesapi
-        build:
-            context: .
-            dockerfile: Services/Purchases/Purchases.API/Dockerfile
-        ports:
-            - 7002:7002
-        depends_on:
-            - db
+    image: microlabb/purchasesapi
+    build:
+      context: .
+      dockerfile: Services/Purchases/Purchases.API/Dockerfile
+    ports:
+      - "7002:7002"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - DefaultConnection=Server=db;Database=purchases;User=sa;Password=${SA_PASSWORD:-YourStrongPassword123!};
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
+    restart: unless-stopped
+
   shopsapi:
-        image: bezlla/shopsapi
-        build:
-            context: .
-            dockerfile: Services/Shops/Shops.API/Dockerfile
-        ports:
-            - 7003:7003
-        depends_on:
-          - db
+    image: microlabb/shopsapi
+    build:
+      context: .
+      dockerfile: Services/Shops/Shops.API/Dockerfile
+    ports:
+      - "7003:7003"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - DefaultConnection=Server=db;Database=shops;User=sa;Password=${SA_PASSWORD:-YourStrongPassword123!};
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
+    restart: unless-stopped
+
   factoriesapi:
-        image: bezlla/factories
-        build:
-            context: .
-            dockerfile: Services/Factories/Factories.API/Dockerfile
-        ports:
-            - 7004:7004
-        depends_on:
-            - db
+    image: microlabb/factoriesapi
+    build:
+      context: .
+      dockerfile: Services/Factories/Factories.API/Dockerfile
+    ports:
+      - "7004:7004"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - DefaultConnection=Server=db;Database=factories;User=sa;Password=${SA_PASSWORD:-YourStrongPassword123!};
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbit:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:

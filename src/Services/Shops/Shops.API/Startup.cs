@@ -71,7 +71,7 @@ namespace Shops.API
                 });
             });
             services.AddDbContext<ShopsDbContext>(
-                option => option.UseInMemoryDatabase("DefaultConnection"), ServiceLifetime.Transient);
+                option => option.UseSqlServer(Configuration["DefaultConnection"]), ServiceLifetime.Transient);
             services.AddScoped<IShopsService, ShopsService>();
           
             services.AddMassTransit(x =>
