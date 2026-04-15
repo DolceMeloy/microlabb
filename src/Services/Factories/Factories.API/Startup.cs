@@ -24,11 +24,11 @@ namespace Factories.API
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // FIX: убран ServiceLifetime.Transient
             services.AddDbContext<FactoriesDbContext>(options =>
                 options.UseSqlServer(Configuration["DefaultConnection"]));
+
             services.AddScoped<IFactoriesService, FactoriesService>();
-            // FIX: убраны ConfigureJsonSerializer/Deserializer, AddMassTransitHostedService
+
             services.AddMassTransit(x =>
             {
                 x.UsingRabbitMq((context, cfg) =>
@@ -36,6 +36,8 @@ namespace Factories.API
                     cfg.Host(new Uri("rabbitmq://rabbit/"));
                 });
             });
+
+            services.AddMassTransitHostedService();
             services.AddHostedService<UpdateShopsTimedHostedService>();
         }
 
