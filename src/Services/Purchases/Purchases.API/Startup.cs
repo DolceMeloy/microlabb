@@ -1,3 +1,4 @@
+using GreenPipes;
 using MassTransit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -31,6 +32,7 @@ namespace Purchases.API
             {
                 option.Filters.Add(typeof(ValidateModelAttribute));
             });
+
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo()
@@ -61,30 +63,32 @@ namespace Purchases.API
                             Scheme = "oauth2",
                             Name   = "Bearer",
                             In     = ParameterLocation.Header,
-
                         },
                         new List<string>()
                     }
                 });
             });
-            // FIX: убран ServiceLifetime.Transient
+
             services.AddDbContext<PurchasesDbContext>(
                 option => option.UseSqlServer(Configuration["DefaultConnection"]));
+
             services.AddScoped<IPurchasesService, PurchasesService>();
-            // FIX: убраны GreenPipes, ConfigureJsonSerializer/Deserializer, AddMassTransitHostedService
+
             services.AddMassTransit(x =>
             {
                 x.AddConsumer<AddTransaction>();
                 x.AddConsumer<GetTransactionById>();
                 x.AddConsumer<GetTransactions>();
                 x.AddConsumer<UpdateTransaction>();
+
                 x.UsingRabbitMq((context, cfg) =>
                 {
                     cfg.Host(new Uri("rabbitmq://rabbit/"));
+
                     cfg.ReceiveEndpoint("purchasesQueue", e =>
                     {
                         e.PrefetchCount = 20;
-                        e.UseMessageRetry(r => r.Interval(2, 100));
+                        e.UseMessageRetry(r => r.Interval(2, TimeSpan.FromMilliseconds(100)));
                         e.Consumer<AddTransaction>(context);
                         e.Consumer<GetTransactionById>(context);
                         e.Consumer<GetTransactions>(context);
@@ -92,16 +96,20 @@ namespace Purchases.API
                     });
                 });
             });
+
+            services.AddMassTransitHostedService();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment()) app.UseDeveloperExceptionPage();
+
             app.UseSwagger()
                 .UseSwaggerUI(c =>
                 {
                     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Purchases.API V1");
                 });
+
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
