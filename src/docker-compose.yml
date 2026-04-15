@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
 
   rabbit:
@@ -167,12 +165,44 @@ services:
     restart: unless-stopped
     networks:
       - gateway
+      - frontend
+
+  # Servlet1 — первый инстанс фронтенда
+  nginx1:
+    image: microlabb/frontend
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:80"
+    depends_on:
+      - apigateway
+    restart: unless-stopped
+    networks:
+      - frontend
+
+  # Servlet2 — второй инстанс фронтенда (балансировка)
+  nginx2:
+    image: microlabb/frontend
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8082:80"
+    depends_on:
+      - apigateway
+    restart: unless-stopped
+    networks:
+      - frontend
 
 volumes:
   sqlserver_data:
 
 networks:
-  # Gateway видит только API-сервисы, не БД и не брокер
+  # Фронтенд видит только Gateway, не видит БД и брокер
+  frontend:
+    driver: bridge
+  # Gateway видит API-сервисы
   gateway:
     driver: bridge
   # API-сервисы общаются с БД
