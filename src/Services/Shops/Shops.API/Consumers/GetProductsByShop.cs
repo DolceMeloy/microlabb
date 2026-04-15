@@ -1,6 +1,8 @@
-﻿using System.Threading.Tasks;
+using System.Linq;
+using System.Threading.Tasks;
 using MassTransit;
 using RtuItLab.Infrastructure.MassTransit.Shops.Requests;
+using RtuItLab.Infrastructure.MassTransit.Shops.Responses;
 using Shops.Domain.Services;
 
 namespace Shops.API.Consumers
@@ -14,7 +16,11 @@ namespace Shops.API.Consumers
         public async Task Consume(ConsumeContext<GetProductsRequest> context)
         {
             var products = await ShopsService.GetProductsByShop(context.Message.ShopId);
-            await context.RespondAsync(products);
+            await context.RespondAsync(new GetProductsResponse
+            {
+                Success  = true,
+                Products = products.ToList()
+            });
         }
     }
 }

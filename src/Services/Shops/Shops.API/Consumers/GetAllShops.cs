@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MassTransit;
 using RtuItLab.Infrastructure.MassTransit.Shops.Requests;
+using RtuItLab.Infrastructure.MassTransit.Shops.Responses;
 using RtuItLab.Infrastructure.Models.Shops;
 using Shops.Domain.Services;
 
@@ -15,9 +17,12 @@ namespace Shops.API.Consumers
 
         public async Task Consume(ConsumeContext<GetAllShopsRequest> context)
         {
-            // GetAllShops() is synchronous — no await needed
             ICollection<Shop> shops = ShopsService.GetAllShops();
-            await context.RespondAsync(shops);
+            await context.RespondAsync(new GetAllShopsResponse
+            {
+                Success = true,
+                Shops   = shops.ToList()
+            });
         }
     }
 }

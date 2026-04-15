@@ -1,8 +1,10 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using MassTransit;
 using RtuItLab.Infrastructure.MassTransit.Purchases.Requests;
 using RtuItLab.Infrastructure.MassTransit.Shops.Requests;
+using RtuItLab.Infrastructure.MassTransit.Shops.Responses;
 using Shops.Domain.Services;
 
 namespace Shops.API.Consumers
@@ -19,13 +21,10 @@ namespace Shops.API.Consumers
 
         public async Task Consume(ConsumeContext<BuyProductsRequest> context)
         {
-            // 1. Сначала выполняем всю бизнес-логику...
-            var order = await ShopsService.BuyProducts(context.Message.ShopId, context.Message.Products);
+            var order       = await ShopsService.BuyProducts(context.Message.ShopId, context.Message.Products);
             var transaction = await ShopsService.CreateTransaction(context.Message.ShopId, order);
             await ShopsService.AddReceipt(transaction.Receipt);
 
-            // 2. ...then send to Purchases (fire-and-forget: AddProductsByFactory
-            //    consumer has no RespondAsync, consistent with that pattern)
             var endpoint = await _bus.GetSendEndpoint(_rabbitMqUrl);
             await endpoint.Send(new AddTransactionRequest
             {
@@ -33,8 +32,11 @@ namespace Shops.API.Consumers
                 Transaction = transaction
             });
 
-            // 3. Отвечаем клиенту только после успешного сохранения всех данных
-            await context.RespondAsync(order);
+            await context.RespondAsync(new GetProductsResponse
+            {
+                Success  = true,
+                Products = order.ToList()
+            });
         }
     }
 }

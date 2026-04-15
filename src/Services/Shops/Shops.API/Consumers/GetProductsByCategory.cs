@@ -1,20 +1,28 @@
-﻿using System.Threading.Tasks;
+using System.Linq;
+using System.Threading.Tasks;
 using MassTransit;
 using RtuItLab.Infrastructure.MassTransit.Shops.Requests;
+using RtuItLab.Infrastructure.MassTransit.Shops.Responses;
 using Shops.Domain.Services;
 
 namespace Shops.API.Consumers
 {
     public class GetProductsByCategory : ShopsBaseConsumer, IConsumer<GetProductsByCategoryRequest>
     {
-        public GetProductsByCategory( IShopsService shopsService) : base(shopsService)
+        public GetProductsByCategory(IShopsService shopsService) : base(shopsService)
         {
         }
 
         public async Task Consume(ConsumeContext<GetProductsByCategoryRequest> context)
         {
-            var order = await ShopsService.GetProductsByCategory(context.Message.ShopId, context.Message.Category);
-            await context.RespondAsync(order);
+            var products = await ShopsService.GetProductsByCategory(
+                context.Message.ShopId,
+                context.Message.Category);
+            await context.RespondAsync(new GetProductsResponse
+            {
+                Success  = true,
+                Products = products.ToList()
+            });
         }
     }
 }
