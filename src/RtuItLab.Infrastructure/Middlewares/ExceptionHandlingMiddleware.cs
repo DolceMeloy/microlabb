@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+using MassTransit;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using RtuItLab.Infrastructure.Exceptions;
 using RtuItLab.Infrastructure.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -15,9 +17,11 @@ namespace RtuItLab.Infrastructure.Middlewares
         private readonly RequestDelegate _next;
         private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-        public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+        public ExceptionHandlingMiddleware(
+            RequestDelegate next,
+            ILogger<ExceptionHandlingMiddleware> logger)
         {
-            _next = next;
+            _next   = next;
             _logger = logger;
         }
 
@@ -35,24 +39,60 @@ namespace RtuItLab.Infrastructure.Middlewares
 
         private Task HandleException(HttpContext context, Exception ex)
         {
-            _logger.LogError(ex.Message);
-            var code = ex switch
-            {
-                NotFoundException _ => HttpStatusCode.NotFound,
-                BadRequestException _ => HttpStatusCode.BadRequest,
-                ForbiddenException _ => HttpStatusCode.Forbidden,
-                _ => HttpStatusCode.InternalServerError
-            };
+            _logger.LogError(ex, ex.Message);
 
-            var errors = new List<string> { ex.Message };
+            HttpStatusCode code;
+            List<string> errors;
 
-            var result = JsonSerializer.Serialize(ApiResult<string>.Failure((int)code, errors),new JsonSerializerOptions()
+            switch (ex)
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            });
+                // MassTransit consumer threw — extract the inner fault message
+                // so the caller gets a meaningful error instead of a timeout detail.
+                case RequestFaultException faultEx:
+                    code = HttpStatusCode.InternalServerError;
+                    var faultMessage = faultEx.Fault?.Exceptions
+                        ?.FirstOrDefault()?.Message ?? faultEx.Message;
+                    errors = new List<string> { $"Service error: {faultMessage}" };
+                    break;
+
+                // MassTransit request timed out — downstream service did not respond.
+                case OperationCanceledException _:
+                case TimeoutException _:
+                    code   = HttpStatusCode.GatewayTimeout;
+                    errors = new List<string>
+                        { "Service timeout: downstream service did not respond in time." };
+                    break;
+
+                case NotFoundException _:
+                    code   = HttpStatusCode.NotFound;
+                    errors = new List<string> { ex.Message };
+                    break;
+
+                case BadRequestException _:
+                    code   = HttpStatusCode.BadRequest;
+                    errors = new List<string> { ex.Message };
+                    break;
+
+                case ForbiddenException _:
+                    code   = HttpStatusCode.Forbidden;
+                    errors = new List<string> { ex.Message };
+                    break;
+
+                default:
+                    code   = HttpStatusCode.InternalServerError;
+                    errors = new List<string> { ex.Message };
+                    break;
+            }
+
+            var result = JsonSerializer.Serialize(
+                ApiResult<string>.Failure((int)code, errors),
+                new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
 
             context.Response.ContentType = "application/json";
-            context.Response.StatusCode = (int)code;
+            context.Response.StatusCode  = (int)code;
 
             return context.Response.WriteAsync(result);
         }
