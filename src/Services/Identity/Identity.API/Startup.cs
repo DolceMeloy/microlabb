@@ -59,12 +59,11 @@ namespace Identity.API
                 });
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
-                    Description = "JWT Authorization header using the Bearer scheme. " +
-                                  "Enter 'Bearer {token}'",
-                    Name   = "Authorization",
-                    In     = ParameterLocation.Header,
-                    Type   = SecuritySchemeType.ApiKey,
-                    Scheme = "Bearer"
+                    Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer {token}'",
+                    Name        = "Authorization",
+                    In          = ParameterLocation.Header,
+                    Type        = SecuritySchemeType.ApiKey,
+                    Scheme      = "Bearer"
                 });
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
@@ -98,7 +97,9 @@ namespace Identity.API
                     cfg.ReceiveEndpoint("identityQueue", e =>
                     {
                         e.PrefetchCount = 20;
-                        e.UseMessageRetry(r => r.Interval(2, 100));
+                        // UseMessageRetry removed: MassTransit.AspNetCore 7.1.6 pulls
+                        // GreenPipes as a transitive dep; GreenPipes Interval() extension
+                        // conflicts with MassTransit's own, causing CS1929 on build.
                         e.Consumer<Authenticate>(context);
                         e.Consumer<CreateUser>(context);
                         e.Consumer<GetUserByToken>(context);
