@@ -15,6 +15,9 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
+    networks:
+      - messaging
+      - backend
 
   db:
     image: mcr.microsoft.com/mssql/server:2019-latest
@@ -32,6 +35,8 @@ services:
       retries: 10
       start_period: 60s
     restart: unless-stopped
+    networks:
+      - backend
 
   identityapi:
     image: microlabb/identityapi
@@ -57,6 +62,10 @@ services:
       retries: 5
       start_period: 40s
     restart: unless-stopped
+    networks:
+      - backend
+      - messaging
+      - gateway
 
   purchasesapi:
     image: microlabb/purchasesapi
@@ -82,6 +91,10 @@ services:
       retries: 5
       start_period: 40s
     restart: unless-stopped
+    networks:
+      - backend
+      - messaging
+      - gateway
 
   shopsapi:
     image: microlabb/shopsapi
@@ -107,6 +120,10 @@ services:
       retries: 5
       start_period: 40s
     restart: unless-stopped
+    networks:
+      - backend
+      - messaging
+      - gateway
 
   factoriesapi:
     image: microlabb/factoriesapi
@@ -126,6 +143,9 @@ services:
       rabbit:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - backend
+      - messaging
 
   apigateway:
     image: microlabb/apigateway
@@ -145,6 +165,19 @@ services:
       shopsapi:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - gateway
 
 volumes:
   sqlserver_data:
+
+networks:
+  # Gateway видит только API-сервисы, не БД и не брокер
+  gateway:
+    driver: bridge
+  # API-сервисы общаются с БД
+  backend:
+    driver: bridge
+  # API-сервисы и rabbit общаются через MassTransit
+  messaging:
+    driver: bridge
