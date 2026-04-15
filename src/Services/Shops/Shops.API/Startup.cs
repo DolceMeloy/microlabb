@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using RtuItLab.Infrastructure.Filters;
-using RtuItLab.Infrastructure.MassTransit.Shops.Requests;
 using RtuItLab.Infrastructure.Middlewares;
 using Shops.API.Consumers;
 using Shops.DAL.Data;
@@ -72,8 +71,8 @@ namespace Shops.API
 
             services.AddScoped<IShopsService, ShopsService>();
 
-            var shopsQueue = new Uri("rabbitmq://rabbit/shopsQueue");
-
+            // MassTransit consumers handle CROSS-SERVICE messages only.
+            // ShopsController calls IShopsService directly (no in-process round-trip).
             services.AddMassTransit(x =>
             {
                 x.AddConsumer<BuyProducts>();
@@ -81,13 +80,6 @@ namespace Shops.API
                 x.AddConsumer<GetProductsByCategory>();
                 x.AddConsumer<GetProductsByShop>();
                 x.AddConsumer<AddProductsByFactory>();
-
-                // IRequestClient<T> registrations — required for DI injection
-                // into ShopsController. Without these the app fails to start.
-                x.AddRequestClient<GetAllShopsRequest>(shopsQueue);
-                x.AddRequestClient<GetProductsRequest>(shopsQueue);
-                x.AddRequestClient<GetProductsByCategoryRequest>(shopsQueue);
-                x.AddRequestClient<BuyProductsRequest>(shopsQueue);
 
                 x.UsingRabbitMq((context, cfg) =>
                 {
