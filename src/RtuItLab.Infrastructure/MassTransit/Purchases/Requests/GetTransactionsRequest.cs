@@ -1,9 +1,9 @@
-using RtuItLab.Infrastructure.Models.Identity;
-
-namespace RtuItLab.Infrastructure.MassTransit.Purchases.Requests
+namespace VegasShop.Infrastructure.MassTransit.Purchases.Requests
 {
     public class GetTransactionsRequest
     {
-        public User User { get; set; }
+        public string UserId { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
     }
 }
