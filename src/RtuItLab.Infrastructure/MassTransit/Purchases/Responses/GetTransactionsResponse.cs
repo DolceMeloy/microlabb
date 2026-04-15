@@ -1,10 +1,11 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using RtuItLab.Infrastructure.Models.Purchases;
 
-namespace VegasShop.Infrastructure.MassTransit.Purchases.Responses
+namespace RtuItLab.Infrastructure.MassTransit.Purchases.Responses
 {
     public class GetTransactionsResponse
     {
-        public bool IsSuccess { get; set; }
-        public List<string> Errors { get; set; }
+        public List<Transaction> Transactions { get; set; }
+        public int Count { get; set; }
     }
 }

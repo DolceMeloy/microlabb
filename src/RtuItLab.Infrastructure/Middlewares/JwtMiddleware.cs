@@ -1,14 +1,14 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using VegasShop.Infrastructure.Models.Identity;
+using RtuItLab.Infrastructure.Models.Identity;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace VegasShop.Infrastructure.Middlewares
+namespace RtuItLab.Infrastructure.Middlewares
 {
     public class JwtMiddleware
     {

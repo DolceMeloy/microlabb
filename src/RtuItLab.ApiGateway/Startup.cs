@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 
-namespace VegasShop.ApiGateway
+namespace RtuItLab.ApiGateway
 {
     public class Startup
     {
@@ -22,6 +22,7 @@ namespace VegasShop.ApiGateway
         }
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+           
             app.UseOcelot().Wait();
         }
     }

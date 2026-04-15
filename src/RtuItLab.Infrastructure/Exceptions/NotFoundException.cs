@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 
-namespace VegasShop.Infrastructure.Exceptions
+namespace RtuItLab.Infrastructure.Exceptions
 {
     public class NotFoundException : Exception
     {
-        public NotFoundException(string message) : base(message) { }
+        public NotFoundException(string message) : base(message)
+        { }
     }
 }

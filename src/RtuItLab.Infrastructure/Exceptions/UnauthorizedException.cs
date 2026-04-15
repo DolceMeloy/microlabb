@@ -1,8 +1,6 @@
-using System;
-
-namespace VegasShop.Infrastructure.Exceptions
+namespace RtuItLab.Infrastructure.Exceptions
 {
-    public class UnauthorizedException : Exception
+    public class UnauthorizedException : System.Exception
     {
         public UnauthorizedException(string message) : base(message) { }
     }

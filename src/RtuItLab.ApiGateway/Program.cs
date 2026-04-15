@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
-namespace VegasShop.ApiGateway
+namespace RtuItLab.ApiGateway
 {
     public class Program
     {

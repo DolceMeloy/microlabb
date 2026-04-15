@@ -1,9 +1,9 @@
 using System;
 using Microsoft.AspNetCore.Mvc.Filters;
-using VegasShop.Infrastructure.Exceptions;
-using VegasShop.Infrastructure.Models.Identity;
+using RtuItLab.Infrastructure.Exceptions;
+using RtuItLab.Infrastructure.Models.Identity;
 
-namespace VegasShop.Infrastructure.Filters
+namespace RtuItLab.Infrastructure.Filters
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
     public class AuthorizeAttribute : Attribute, IAuthorizationFilter
