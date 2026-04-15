@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using RtuItLab.Infrastructure.Filters;
-using RtuItLab.Infrastructure.MassTransit.Shops.Requests;
 using RtuItLab.Infrastructure.Middlewares;
 using Shops.API.Consumers;
 using Shops.DAL.Data;
@@ -74,19 +73,11 @@ namespace Shops.API
 
             services.AddMassTransit(x =>
             {
-                // Consumers — handle inbound messages from other services
                 x.AddConsumer<BuyProducts>();
                 x.AddConsumer<GetAllShops>();
                 x.AddConsumer<GetProductsByCategory>();
                 x.AddConsumer<GetProductsByShop>();
                 x.AddConsumer<AddProductsByFactory>();
-
-                // Request clients — used by ShopsController to send messages
-                // to own consumers (in-process request/response via RabbitMQ)
-                x.AddRequestClient<GetAllShopsRequest>();
-                x.AddRequestClient<GetProductsRequest>();
-                x.AddRequestClient<GetProductsByCategoryRequest>();
-                x.AddRequestClient<BuyProductsRequest>();
 
                 x.UsingRabbitMq((context, cfg) =>
                 {
@@ -101,8 +92,6 @@ namespace Shops.API
                         e.Consumer<GetProductsByShop>(context);
                         e.Consumer<AddProductsByFactory>(context);
                     });
-
-                    cfg.ConfigureEndpoints(context);
                 });
             });
         }

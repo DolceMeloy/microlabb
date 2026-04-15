@@ -1,11 +1,12 @@
 using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using RtuItLab.Infrastructure.Filters;
-using RtuItLab.Infrastructure.MassTransit.Shops.Requests;
-using RtuItLab.Infrastructure.MassTransit.Shops.Responses;
+using RtuItLab.Infrastructure.MassTransit.Purchases.Requests;
 using RtuItLab.Infrastructure.Models;
 using RtuItLab.Infrastructure.Models.Identity;
 using RtuItLab.Infrastructure.Models.Shops;
+using Shops.Domain.Services;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -15,50 +16,37 @@ namespace Shops.API.Controllers
     [ApiController]
     public class ShopsController : ControllerBase
     {
-        private readonly IRequestClient<GetAllShopsRequest>           _getAllShopsClient;
-        private readonly IRequestClient<GetProductsRequest>           _getProductsClient;
-        private readonly IRequestClient<GetProductsByCategoryRequest> _getCategoryClient;
-        private readonly IRequestClient<BuyProductsRequest>           _buyProductsClient;
+        private readonly IShopsService _shopsService;
+        private readonly IBus          _bus;
+        private readonly Uri           _purchasesQueue = new Uri("rabbitmq://rabbit/purchasesQueue");
 
-        public ShopsController(
-            IRequestClient<GetAllShopsRequest>           getAllShopsClient,
-            IRequestClient<GetProductsRequest>           getProductsClient,
-            IRequestClient<GetProductsByCategoryRequest> getCategoryClient,
-            IRequestClient<BuyProductsRequest>           buyProductsClient)
+        public ShopsController(IShopsService shopsService, IBus bus)
         {
-            _getAllShopsClient  = getAllShopsClient;
-            _getProductsClient = getProductsClient;
-            _getCategoryClient = getCategoryClient;
-            _buyProductsClient = buyProductsClient;
+            _shopsService = shopsService;
+            _bus          = bus;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllShops()
+        public IActionResult GetAllShops()
         {
-            var response = await _getAllShopsClient.GetResponse<GetAllShopsResponse>(
-                new GetAllShopsRequest());
-            return Ok(ApiResult<ICollection<Shop>>.Success200(response.Message.Shops));
+            var shops = _shopsService.GetAllShops();
+            return Ok(ApiResult<ICollection<Shop>>.Success200(shops));
         }
 
         [HttpGet("{shopId}")]
         public async Task<IActionResult> GetProducts(int shopId)
         {
-            var response = await _getProductsClient.GetResponse<GetProductsResponse>(
-                new GetProductsRequest { ShopId = shopId });
-            return Ok(ApiResult<ICollection<Product>>.Success200(response.Message.Products));
+            var products = await _shopsService.GetProductsByShop(shopId);
+            return Ok(ApiResult<ICollection<Product>>.Success200(products));
         }
 
         [HttpPost("{shopId}/find_by_category")]
         public async Task<IActionResult> GetProductsByCategory(
             int shopId, [FromBody] Category category)
         {
-            var response = await _getCategoryClient.GetResponse<GetProductsResponse>(
-                new GetProductsByCategoryRequest
-                {
-                    ShopId   = shopId,
-                    Category = category?.CategoryName
-                });
-            return Ok(ApiResult<ICollection<Product>>.Success200(response.Message.Products));
+            var products = await _shopsService.GetProductsByCategory(
+                shopId, category?.CategoryName);
+            return Ok(ApiResult<ICollection<Product>>.Success200(products));
         }
 
         [Authorize]
@@ -71,19 +59,20 @@ namespace Shops.API.Controllers
                 return Unauthorized(ApiResult<object>.Failure(401,
                     new List<string> { "Unauthorized" }));
 
-            var response = await _buyProductsClient.GetResponse<GetProductsResponse>(
-                new BuyProductsRequest
-                {
-                    User     = user,
-                    ShopId   = shopId,
-                    Products = products
-                });
+            var order       = await _shopsService.BuyProducts(shopId, products);
+            var transaction = await _shopsService.CreateTransaction(shopId, order);
+            await _shopsService.AddReceipt(transaction.Receipt);
 
-            if (!response.Message.Success)
-                return BadRequest(ApiResult<object>.Failure(400,
-                    new List<string> { "Order failed" }));
+            // Publish to Purchases service via RabbitMQ
+            var endpoint = await _bus.GetSendEndpoint(_purchasesQueue);
+            await endpoint.Send(new AddTransactionRequest
+            {
+                User        = user,
+                Transaction = transaction
+            });
 
-            return Ok(ApiResult<ICollection<Product>>.Success200(response.Message.Products));
+            return Ok(ApiResult<ICollection<Product>>.Success200(
+                new List<Product>(order)));
         }
     }
 }
