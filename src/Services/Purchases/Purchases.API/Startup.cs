@@ -85,9 +85,6 @@ namespace Purchases.API
                     cfg.ReceiveEndpoint("purchasesQueue", e =>
                     {
                         e.PrefetchCount = 20;
-                        // UseMessageRetry removed: MassTransit.AspNetCore 7.1.6 pulls
-                        // GreenPipes as a transitive dep; GreenPipes Interval() extension
-                        // conflicts with MassTransit's own, causing CS1929 on build.
                         e.Consumer<AddTransaction>(context);
                         e.Consumer<GetTransactionById>(context);
                         e.Consumer<GetTransactions>(context);
@@ -95,6 +92,11 @@ namespace Purchases.API
                     });
                 });
             });
+
+            // FIX: запускает IBusControl как IHostedService — без этого
+            // MassTransit регистрирует consumers в DI, но шина никогда
+            // не коннектится к RabbitMQ и очереди не слушаются.
+            services.AddMassTransitHostedService();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

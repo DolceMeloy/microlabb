@@ -94,6 +94,11 @@ namespace Shops.API
                     });
                 });
             });
+
+            // FIX: запускает IBusControl как IHostedService — без этого
+            // MassTransit регистрирует consumers в DI, но шина никогда
+            // не коннектится к RabbitMQ и очереди не слушаются.
+            services.AddMassTransitHostedService();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
