@@ -11,34 +11,49 @@ namespace RtuItLab.Infrastructure.Middlewares
     public class JwtMiddleware
     {
         private readonly RequestDelegate _next;
-        // FIX: исправлен hostname с localhost на rabbit (Docker service name)
+        private readonly IBus _bus;
         private readonly Uri _rabbitMqUri = new Uri("rabbitmq://rabbit/identityQueue");
 
-        public JwtMiddleware(RequestDelegate next)
+        // BUG FIX: was injecting IBusControl via Invoke() parameter.
+        // IBusControl is the bus lifecycle manager (Start/Stop); it must NOT
+        // be injected into per-request middleware. IBus is the correct interface
+        // for sending/publishing messages from application code. Also moved
+        // injection to the constructor (Singleton middleware — constructor
+        // injection is the right place for Singleton dependencies).
+        public JwtMiddleware(RequestDelegate next, IBus bus)
         {
             _next = next;
+            _bus  = bus;
         }
 
-        public async Task Invoke(HttpContext context, IBusControl busControl)
+        public async Task Invoke(HttpContext context)
         {
-            var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split().Last();
+            var token = context.Request.Headers["Authorization"]
+                .FirstOrDefault()?.Split(" ").Last();
+
             if (token != null)
-                await AttachUserToContext(context, busControl, token);
+                await AttachUserToContext(context, token);
+
             await _next(context);
         }
 
-        private async Task AttachUserToContext(HttpContext context, IBusControl busControl, string token)
+        private async Task AttachUserToContext(HttpContext context, string token)
         {
             try
             {
-                var client = busControl.CreateRequestClient<TokenRequest>(_rabbitMqUri, TimeSpan.FromSeconds(10));
-                var response = await client.GetResponse<User>(new TokenRequest { Token = token });
+                var client = _bus.CreateRequestClient<TokenRequest>(
+                    _rabbitMqUri, TimeSpan.FromSeconds(10));
+
+                var response = await client.GetResponse<User>(
+                    new TokenRequest { Token = token });
+
                 if (response.Message != null)
                     context.Items["User"] = response.Message;
             }
             catch
             {
-                // Невалидный токен — просто не устанавливаем пользователя
+                // Invalid or expired token — do not set User; protected
+                // endpoints will return 401 via the [Authorize] filter.
             }
         }
     }
