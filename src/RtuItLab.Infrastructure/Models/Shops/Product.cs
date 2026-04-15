@@ -1,7 +1,7 @@
-using VegasShop.Infrastructure.Exceptions;
+using RtuItLab.Infrastructure.Exceptions;
 using System.ComponentModel.DataAnnotations;
 
-namespace VegasShop.Infrastructure.Models.Shops
+namespace RtuItLab.Infrastructure.Models.Shops
 {
     [ProductValidation]
     public class Product

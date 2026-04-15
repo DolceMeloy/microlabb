@@ -1,6 +1,6 @@
 using System;
 
-namespace VegasShop.Infrastructure.Exceptions
+namespace RtuItLab.Infrastructure.Exceptions
 {
     public class BadRequestException : Exception
     {

@@ -1,4 +1,4 @@
-namespace VegasShop.Infrastructure.Models.Shops
+namespace RtuItLab.Infrastructure.Models.Shops
 {
     public enum Category
     {

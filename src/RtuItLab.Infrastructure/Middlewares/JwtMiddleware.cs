@@ -1,25 +1,24 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using VegasShop.Infrastructure.Models.Identity;
+using RtuItLab.Infrastructure.Models.Identity;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace VegasShop.Infrastructure.Middlewares
+namespace RtuItLab.Infrastructure.Middlewares
 {
     public class JwtMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly string _secret;
 
-        public JwtMiddleware(RequestDelegate next, IConfiguration configuration)
+        public JwtMiddleware(RequestDelegate next, IOptions<JwtSettings> appSettings)
         {
-            _next   = next;
-            _secret = configuration["Secret"]
-                ?? throw new InvalidOperationException("JWT Secret is not configured.");
+            _next = next;
+            _secret = appSettings.Value.Secret;
         }
 
         public async Task Invoke(HttpContext context)
@@ -28,34 +27,36 @@ namespace VegasShop.Infrastructure.Middlewares
                 .FirstOrDefault()?.Split(" ").Last();
 
             if (token != null)
-                AttachUserToContext(context, token);
+                attachUserToContext(context, token);
 
             await _next(context);
         }
 
-        private void AttachUserToContext(HttpContext context, string token)
+        private void attachUserToContext(HttpContext context, string token)
         {
             try
             {
                 var tokenHandler = new JwtSecurityTokenHandler();
-                var key          = Encoding.ASCII.GetBytes(_secret);
-
+                var key = Encoding.ASCII.GetBytes(_secret);
                 tokenHandler.ValidateToken(token, new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey         = new SymmetricSecurityKey(key),
-                    ValidateIssuer           = false,
-                    ValidateAudience         = false,
-                    ClockSkew                = TimeSpan.Zero
-                }, out var validatedToken);
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ClockSkew = TimeSpan.Zero
+                }, out SecurityToken validatedToken);
 
-                var jwt      = (JwtSecurityToken)validatedToken;
-                var userId   = jwt.Claims.First(c => c.Type == "id").Value;
-                var username = jwt.Claims.FirstOrDefault(c => c.Type == "username")?.Value;
-
-                context.Items["User"] = new User { Id = userId, Username = username };
+                var jwt = (JwtSecurityToken)validatedToken;
+                var userId = jwt.Claims.First(x => x.Type == "id").Value;
+                context.Items["User"] = new User { Id = userId };
             }
             catch { }
         }
+    }
+
+    public class JwtSettings
+    {
+        public string Secret { get; set; }
     }
 }

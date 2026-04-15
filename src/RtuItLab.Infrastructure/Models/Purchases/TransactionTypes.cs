@@ -1,4 +1,4 @@
-namespace VegasShop.Infrastructure.Models.Purchases
+namespace RtuItLab.Infrastructure.Models.Purchases
 {
     public enum TransactionTypes
     {

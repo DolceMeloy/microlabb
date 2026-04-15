@@ -1,31 +1,24 @@
 using MassTransit;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using VegasShop.Infrastructure.Exceptions;
-using VegasShop.Infrastructure.Models;
+using Newtonsoft.Json;
+using RtuItLab.Infrastructure.Exceptions;
+using RtuItLab.Infrastructure.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace VegasShop.Infrastructure.Middlewares
+namespace RtuItLab.Infrastructure.Middlewares
 {
     public class ExceptionHandlingMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
-        public ExceptionHandlingMiddleware(
-            RequestDelegate next,
-            ILogger<ExceptionHandlingMiddleware> logger)
+        public ExceptionHandlingMiddleware(RequestDelegate next)
         {
-            _next   = next;
-            _logger = logger;
+            _next = next;
         }
 
-        public async Task Invoke(HttpContext context)
+        public async Task InvokeAsync(HttpContext context)
         {
             try
             {
@@ -33,69 +26,48 @@ namespace VegasShop.Infrastructure.Middlewares
             }
             catch (Exception ex)
             {
-                await HandleException(context, ex);
+                await HandleExceptionAsync(context, ex);
             }
         }
 
-        private Task HandleException(HttpContext context, Exception ex)
+        private static Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
-            _logger.LogError(ex, ex.Message);
+            int statusCode;
+            string message;
 
-            HttpStatusCode code;
-            List<string> errors;
-
-            switch (ex)
+            switch (exception)
             {
-                case RequestFaultException faultEx:
-                    code = HttpStatusCode.InternalServerError;
-                    var faultMessage = faultEx.Fault?.Exceptions
-                        ?.FirstOrDefault()?.Message ?? faultEx.Message;
-                    errors = new List<string> { $"Service error: {faultMessage}" };
-                    break;
-
-                case OperationCanceledException _:
-                case TimeoutException _:
-                    code   = HttpStatusCode.GatewayTimeout;
-                    errors = new List<string>
-                        { "Service timeout: downstream service did not respond in time." };
-                    break;
-
-                case NotFoundException _:
-                    code   = HttpStatusCode.NotFound;
-                    errors = new List<string> { ex.Message };
-                    break;
-
                 case BadRequestException _:
-                    code   = HttpStatusCode.BadRequest;
-                    errors = new List<string> { ex.Message };
+                    statusCode = 400;
+                    message = exception.Message;
                     break;
-
                 case UnauthorizedException _:
-                    code   = HttpStatusCode.Unauthorized;
-                    errors = new List<string> { ex.Message };
+                    statusCode = 401;
+                    message = exception.Message;
                     break;
-
                 case ForbiddenException _:
-                    code   = HttpStatusCode.Forbidden;
-                    errors = new List<string> { ex.Message };
+                    statusCode = 403;
+                    message = exception.Message;
                     break;
-
+                case NotFoundException _:
+                    statusCode = 404;
+                    message = exception.Message;
+                    break;
+                case RequestFaultException rfe:
+                    statusCode = 500;
+                    message = rfe.Message;
+                    break;
                 default:
-                    code   = HttpStatusCode.InternalServerError;
-                    errors = new List<string> { ex.Message };
+                    statusCode = 500;
+                    message = exception.Message;
                     break;
             }
 
-            var result = JsonSerializer.Serialize(
-                ApiResult<string>.Failure((int)code, errors),
-                new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                });
-
             context.Response.ContentType = "application/json";
-            context.Response.StatusCode  = (int)code;
+            context.Response.StatusCode = statusCode;
 
+            var result = JsonConvert.SerializeObject(
+                ApiResult<object>.Failure(statusCode, new List<string> { message }));
             return context.Response.WriteAsync(result);
         }
     }

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace VegasShop.Infrastructure.Models.Shops
+namespace RtuItLab.Infrastructure.Models.Shops
 {
     public class Shop
     {
