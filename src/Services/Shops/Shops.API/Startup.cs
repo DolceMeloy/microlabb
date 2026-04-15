@@ -87,7 +87,7 @@ namespace Shops.API
                     cfg.ReceiveEndpoint("shopsQueue", e =>
                     {
                         e.PrefetchCount = 20;
-                        e.UseMessageRetry(r => r.Interval(2, TimeSpan.FromMilliseconds(100)));
+                        e.UseMessageRetry(r => r.Interval(2, 100));
                         e.Consumer<BuyProducts>(context);
                         e.Consumer<GetAllShops>(context);
                         e.Consumer<GetProductsByCategory>(context);
@@ -96,7 +96,6 @@ namespace Shops.API
                     });
                 });
             });
-            // REMOVED: services.AddMassTransitHostedService() — auto-registered in MT 7.1+
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
