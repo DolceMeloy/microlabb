@@ -14,6 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using RtuItLab.Infrastructure.Filters;
 using RtuItLab.Infrastructure.Middlewares;
+using RtuItLab.Infrastructure.Models.Identity;
 using System;
 using System.Collections.Generic;
 
@@ -90,6 +91,15 @@ namespace Identity.API
                 x.AddConsumer<CreateUser>();
                 x.AddConsumer<GetUserByToken>();
 
+                // Register typed request clients — these are lifecycle-managed
+                // and always connected to the bus, unlike IBusControl.CreateRequestClient()
+                x.AddRequestClient<AuthenticateRequest>(
+                    new Uri("rabbitmq://rabbit/identityQueue"));
+                x.AddRequestClient<RegisterRequest>(
+                    new Uri("rabbitmq://rabbit/identityQueue"));
+                x.AddRequestClient<TokenRequest>(
+                    new Uri("rabbitmq://rabbit/identityQueue"));
+
                 x.UsingRabbitMq((context, cfg) =>
                 {
                     cfg.Host(new Uri("rabbitmq://rabbit/"));
@@ -97,9 +107,6 @@ namespace Identity.API
                     cfg.ReceiveEndpoint("identityQueue", e =>
                     {
                         e.PrefetchCount = 20;
-                        // UseMessageRetry removed: MassTransit.AspNetCore 7.1.6 pulls
-                        // GreenPipes as a transitive dep; GreenPipes Interval() extension
-                        // conflicts with MassTransit's own, causing CS1929 on build.
                         e.Consumer<Authenticate>(context);
                         e.Consumer<CreateUser>(context);
                         e.Consumer<GetUserByToken>(context);
