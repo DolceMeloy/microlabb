@@ -1,8 +1,8 @@
-namespace VegasShop.Infrastructure.Models.Purchases
+﻿namespace RtuItLab.Infrastructure.Models.Purchases
 {
     public enum TransactionTypes
     {
-        Debit = 0,
-        Credit = 1
+        ByCard = 0,
+        InCash
     }
 }
