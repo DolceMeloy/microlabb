@@ -1,4 +1,4 @@
-﻿using MassTransit;
+using MassTransit;
 using Purchases.Domain.Services;
 using RtuItLab.Infrastructure.MassTransit.Purchases.Requests;
 using System.Threading.Tasks;
@@ -10,10 +10,14 @@ namespace Purchases.API.Consumers
         public AddTransaction(IPurchasesService purchasesService) : base(purchasesService)
         {
         }
+
         public async Task Consume(ConsumeContext<AddTransactionRequest> context)
         {
-           var order = await PurchasesService.AddTransaction(context.Message.User, context.Message.Transaction);
-            await context.RespondAsync(order);
+            // FIX: Shops использует Send (fire-and-forget), а не Request/Response.
+            // RespondAsync выбрасывал исключение "No response address" —
+            // сообщение уходило в error queue, транзакция в БД не создавалась.
+            // Просто выполняем AddTransaction без попытки ответить отправителю.
+            await PurchasesService.AddTransaction(context.Message.User, context.Message.Transaction);
         }
     }
 }
