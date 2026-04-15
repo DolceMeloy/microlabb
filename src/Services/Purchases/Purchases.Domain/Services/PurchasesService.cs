@@ -44,7 +44,24 @@ namespace Purchases.Domain.Services
                 .Include(c => c.Transactions)
                 .FirstOrDefaultAsync(item => item.CustomerId == user.Id);
 
+            // Manual transaction — IsShopCreate always false
             customer.Transactions.Add(transaction.ToTransactionContext());
+            await _context.SaveChangesAsync();
+
+            return new BaseResponseMassTransit();
+        }
+
+        public async Task<BaseResponseMassTransit> AddShopTransaction(User user, Transaction transaction)
+        {
+            await EnsureCustomerExists(user);
+            var customer = await _context.Customers
+                .Include(c => c.Transactions)
+                .FirstOrDefaultAsync(item => item.CustomerId == user.Id);
+
+            // Shop transaction — IsShopCreate forced true
+            var ctx = transaction.ToTransactionContext();
+            ctx.IsShopCreate = true;
+            customer.Transactions.Add(ctx);
             await _context.SaveChangesAsync();
 
             return new BaseResponseMassTransit();

@@ -13,11 +13,8 @@ namespace Purchases.API.Consumers
 
         public async Task Consume(ConsumeContext<AddTransactionRequest> context)
         {
-            // FIX: Shops использует Send (fire-and-forget), а не Request/Response.
-            // RespondAsync выбрасывал исключение "No response address" —
-            // сообщение уходило в error queue, транзакция в БД не создавалась.
-            // Просто выполняем AddTransaction без попытки ответить отправителю.
-            await PurchasesService.AddTransaction(context.Message.User, context.Message.Transaction);
+            // Shop sends transaction via MassTransit — must be marked IsShopCreate=true
+            await PurchasesService.AddShopTransaction(context.Message.User, context.Message.Transaction);
         }
     }
 }
